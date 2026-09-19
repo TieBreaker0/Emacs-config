@@ -33,6 +33,7 @@
         (awk-mode . "awk")
         (other . "gnu")))
 
+;; this is for showing file absolute path in title bar 
 (setq-default frame-title-format
               '((:eval (if (buffer-file-name)
                            (abbreviate-file-name (buffer-file-name))
@@ -62,7 +63,6 @@
       (with-selected-window new-window
         (apply orig-fun args)))))
 
-;; Attach our custom rules to the native find-file command
 (advice-add 'find-file :around #'my/advise-find-file-split-right)
 
 
@@ -88,20 +88,18 @@
   (load-theme 'doom-molokai t))
 
 (use-package eglot
-  :ensure nil ;; Built-in in Emacs 29+
+  :ensure nil 
   :hook ((c-mode . eglot-ensure)
          (c++-mode . eglot-ensure)
          (python-mode . eglot-ensure)
          (rust-mode . eglot-ensure)
-         (js-mode . eglot-ensure)) ;; Add any other language hooks here
+         (js-mode . eglot-ensure)) 
   :config
   ;; Keep Flymake out of Eglot globally
   (add-to-list 'eglot-stay-out-of 'flymake))
 
-;; --- 1. CORFU (The Popup UI) ---
 (use-package corfu
   :ensure t
-  ;; Optional: Installs extensions for history, terminal support, etc.
   :init
   (global-corfu-mode)
   :custom
@@ -116,7 +114,6 @@
         ("S-TAB" . corfu-previous) ;; Shift-TAB to cycle up
         ([backtab] . corfu-previous)))
 
-;; --- 2. ORDERLESS (Fuzzy Matching) ---
 ;; Allows you to type components of a variable out of order (e.g., "str cpy" matches "strcpy")
 (use-package orderless
   :ensure t
@@ -124,7 +121,6 @@
   (completion-styles '(orderless basic))
   (completion-category-overrides '((file (styles basic partial-completion)))))
 
-;; --- 3. CAPE (Completion Extensions) ---
 ;; Merges multiple backends (like file paths, keywords, and dicts) into any language
 (use-package cape
   :ensure t
