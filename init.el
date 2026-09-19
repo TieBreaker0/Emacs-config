@@ -52,20 +52,31 @@
 (setq-default word-wrap t)
 
 
+(defvar my/dired-opening-file nil
+  "Non-nil when `find-file` is being called by Dired's file-opening command.")
+
+(defun my/advise-dired-find-file (orig-fun &rest args)
+  "Mark that `find-file` was invoked by Dired."
+  (let ((my/dired-opening-file t))
+    (apply orig-fun args)))
+
 (defun my/advise-find-file-split-right (orig-fun &rest args)
-  "Make `find-file` open in a right-hand split if the current buffer is visiting a file."
-  (if (and buffer-file-name            ; If current buffer is an actual file
-           (not (one-window-p)))       ; AND the window isn't already split
-      ;; Standard behavior if already split or blank
+  "Open files in a right-hand split when appropriate."
+  (if (or my/dired-opening-file
+          (and buffer-file-name
+               (not (one-window-p))))
+      ;; Normal behavior:
+      ;; - Opening a file from Dired
+      ;; - Current buffer is already a file and window is split
       (apply orig-fun args)
-    ;; Otherwise, slice down the middle and open on the right
+
+    ;; Otherwise, split and open on the right.
     (let ((new-window (split-window-right)))
       (with-selected-window new-window
         (apply orig-fun args)))))
 
+(advice-add 'dired-find-file :around #'my/advise-dired-find-file)
 (advice-add 'find-file :around #'my/advise-find-file-split-right)
-
-
 
 (use-package vterm
   :ensure t
