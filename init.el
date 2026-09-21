@@ -51,21 +51,51 @@
 (setq-default truncate-lines nil)
 (setq-default word-wrap t)
 
+(defvar my/dired-opening-file nil
+  "Non-nil when `find-file` is being called by Dired.")
+
+(defvar my/dired-jump nil
+  "Non-nil while `dired-jump` is running.")
+
+(defun my/advise-dired-find-file (orig-fun &rest args)
+  "Mark that `find-file` was called by `dired-find-file`."
+  (let ((my/dired-opening-file t))
+    (apply orig-fun args)))
+
+(defun my/advise-dired-jump (orig-fun &rest args)
+  "Mark that `dired-jump` is running."
+  (let ((my/dired-jump t))
+    (apply orig-fun args)))
 
 (defun my/advise-find-file-split-right (orig-fun &rest args)
-  "Open files in a right-hand split when appropriate."
-  (if (or (derived-mode-p 'dired-mode)
-          (and buffer-file-name
-               (not (one-window-p))))
-      ;; Don't split
-      (apply orig-fun args)
+  "Ask whether to split before opening an explicitly selected file."
+  (if (and (not my/dired-opening-file)
+           (not my/dired-jump)
+           (or buffer-file-name
+               (derived-mode-p 'dired-mode)))
+      (if (y-or-n-p "Split window and open file in new window? ")
+          ;; User chooses yes.
+          (let ((new-window (split-window-right)))
+            (select-window new-window)
+            (apply orig-fun args))
 
-    ;; Split right
-    (let ((new-window (split-window-right)))
-      (with-selected-window new-window
-        (apply orig-fun args)))))
+        ;; User chooses no.
+        (apply orig-fun args))
 
+    ;; Dired opening a file, dired-jump, scratch, etc.
+    (apply orig-fun args)))
+
+(advice-add 'dired-find-file :around #'my/advise-dired-find-file)
+(advice-add 'dired-jump :around #'my/advise-dired-jump)
 (advice-add 'find-file :around #'my/advise-find-file-split-right)
+
+
+(defun my/delete-window-and-balance (orig-fun &rest args)
+  "Delete the current window and rebalance the remaining windows."
+  (apply orig-fun args)
+  (balance-windows))
+
+(advice-add 'delete-window :around #'my/delete-window-and-balance)
 
 (use-package vterm
   :ensure t
@@ -88,15 +118,16 @@
   (load-theme 'doom-molokai t))
 
 (use-package eglot
-  :ensure nil 
+  :ensure nil
+  :config
+  (add-to-list 'eglot-stay-out-of 'flymake)
+
   :hook ((c-mode . eglot-ensure)
          (c++-mode . eglot-ensure)
          (python-mode . eglot-ensure)
          (rust-mode . eglot-ensure)
-         (js-mode . eglot-ensure)) 
-  :config
-  ;; Keep Flymake out of Eglot globally
-  (add-to-list 'eglot-stay-out-of 'flymake))
+         (js-mode . eglot-ensure)
+         (json-mode . eglot-ensure)))
 
 (use-package corfu
   :ensure t
@@ -136,3 +167,14 @@
   :config
   (when (memq window-system '(x pgtk))
     (exec-path-from-shell-initialize)))
+
+(setq-default eglot-workspace-configuration
+              `((:typescript-language-server
+                 (:tsserver
+                  (:fallbackPath
+                   ,(expand-file-name
+                     "typescript/lib/"
+                     (string-trim
+                      (shell-command-to-string "npm root -g"))))))))
+
+
