@@ -52,30 +52,19 @@
 (setq-default word-wrap t)
 
 
-(defvar my/dired-opening-file nil
-  "Non-nil when `find-file` is being called by Dired's file-opening command.")
-
-(defun my/advise-dired-find-file (orig-fun &rest args)
-  "Mark that `find-file` was invoked by Dired."
-  (let ((my/dired-opening-file t))
-    (apply orig-fun args)))
-
 (defun my/advise-find-file-split-right (orig-fun &rest args)
   "Open files in a right-hand split when appropriate."
-  (if (or my/dired-opening-file
+  (if (or (derived-mode-p 'dired-mode)
           (and buffer-file-name
                (not (one-window-p))))
-      ;; Normal behavior:
-      ;; - Opening a file from Dired
-      ;; - Current buffer is already a file and window is split
+      ;; Don't split
       (apply orig-fun args)
 
-    ;; Otherwise, split and open on the right.
+    ;; Split right
     (let ((new-window (split-window-right)))
       (with-selected-window new-window
         (apply orig-fun args)))))
 
-(advice-add 'dired-find-file :around #'my/advise-dired-find-file)
 (advice-add 'find-file :around #'my/advise-find-file-split-right)
 
 (use-package vterm
@@ -140,3 +129,10 @@
   (add-to-list 'completion-at-point-functions #'cape-file)    ;; Complete file paths
   (add-to-list 'completion-at-point-functions #'cape-keyword) ;; Programming language keywords
   (add-to-list 'completion-at-point-functions #'cape-dabbrev)) ;; Words already in open buffers
+
+
+(use-package exec-path-from-shell
+  :ensure t
+  :config
+  (when (memq window-system '(x pgtk))
+    (exec-path-from-shell-initialize)))
